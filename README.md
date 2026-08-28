@@ -18,8 +18,6 @@ evilbox packed.php --lang php
 evilbox - --lang js < packed.js
 ```
 
-`deobfuscate` is kept as an alias for the same CLI.
-
 | Flag | Meaning |
 | --- | --- |
 | `--lang auto\|js\|php` | Language (default: `auto` from path and contents) |
