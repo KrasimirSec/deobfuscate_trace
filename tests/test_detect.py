@@ -1,4 +1,4 @@
-from deobfuscator.detect import detect_language
+from evilbox.detect import detect_language
 
 
 def test_detect_js_extension():

@@ -39,8 +39,8 @@ def init_ca(ca_dir: Path) -> None:
     name = x509.Name(
         [
             x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Deobfuscator Sandbox"),
-            x509.NameAttribute(NameOID.COMMON_NAME, "Deobfuscator Sandbox CA"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evilbox Sandbox"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "Evilbox Sandbox CA"),
         ]
     )
     cert = (
@@ -100,7 +100,7 @@ def _leaf_for_host(hostname: str) -> ssl.SSLContext:
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = x509.Name(
             [
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Deobfuscator Sink"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Evilbox Sink"),
                 x509.NameAttribute(NameOID.COMMON_NAME, host),
             ]
         )

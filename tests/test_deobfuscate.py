@@ -4,7 +4,7 @@ import io
 import zlib
 from pathlib import Path
 
-from deobfuscator.pipeline import deobfuscate
+from evilbox.pipeline import deobfuscate
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

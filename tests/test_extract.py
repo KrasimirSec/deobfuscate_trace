@@ -1,5 +1,5 @@
-from deobfuscator.extract import extract_indicators
-from deobfuscator.pipeline import deobfuscate
+from evilbox.extract import extract_indicators
+from evilbox.pipeline import deobfuscate
 
 
 def test_extract_url_domain_file_and_apis():

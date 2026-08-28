@@ -10,9 +10,9 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from deobfuscator.pipeline import deobfuscate
+from evilbox.pipeline import deobfuscate
 
-IMAGE_NAME = "deobfuscator-php-sandbox"
+IMAGE_NAME = "evilbox-php-sandbox"
 QUERY_RE = re.compile(r"query\[[^\]]+\]\s+(\S+)", re.I)
 
 
@@ -26,7 +26,7 @@ def sandbox_context_dir() -> Path:
         candidate = base / "sandbox" / "php" / "Dockerfile"
         if candidate.is_file():
             return candidate.parent
-    raise SandboxError("Could not find sandbox/php/Dockerfile (run from the deobfuscator repo).")
+    raise SandboxError("Could not find sandbox/php/Dockerfile (run from the Evilbox repo).")
 
 
 @dataclass
@@ -158,7 +158,7 @@ def run_php_sandbox(
     context = sandbox_context_dir()
     run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     tag = f"{IMAGE_NAME}:{run_id}"
-    container_name = f"deobfuscator-{run_id}"
+    container_name = f"evilbox-{run_id}"
     log_dir = (logs_root / run_id).resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -210,7 +210,7 @@ def run_php_sandbox(
 
 
 def default_logs_root() -> Path:
-    env = os.environ.get("DEOBFUSCATOR_LOGS")
+    env = os.environ.get("EVILBOX_LOGS") or os.environ.get("DEOBFUSCATOR_LOGS")
     if env:
         return Path(env)
     return Path.cwd() / "sandbox-logs"

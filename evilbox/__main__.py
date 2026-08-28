@@ -1,4 +1,4 @@
-from deobfuscator.cli import main
+from evilbox.cli import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

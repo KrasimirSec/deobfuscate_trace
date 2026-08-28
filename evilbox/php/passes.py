@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from deobfuscator.decode import (
+from evilbox.decode import (
     b64decode,
     bytes_to_text,
     format_php_number,
@@ -17,8 +17,8 @@ from deobfuscator.decode import (
     unescape_html_entities,
     zlib_bytes,
 )
-from deobfuscator.parsers import parse_php
-from deobfuscator.rewrite import apply_replacements, node_text, walk
+from evilbox.parsers import parse_php
+from evilbox.rewrite import apply_replacements, node_text, walk
 
 PHP_JUNK_RE = re.compile(r"^_0x[0-9a-fA-F]+$")
 PHP_HEX_VAR_RE = re.compile(r"^[0-9a-f]{8,}$", re.I)

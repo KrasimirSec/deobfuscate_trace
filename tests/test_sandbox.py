@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from deobfuscator.sandbox import docker_run_args, finalize_logs, sandbox_context_dir
+from evilbox.sandbox import docker_run_args, finalize_logs, sandbox_context_dir
 
 
 def test_sandbox_dockerfile_present():
@@ -22,12 +22,12 @@ def test_docker_run_is_isolated(tmp_path):
     logs = tmp_path / "logs"
     logs.mkdir()
     args = docker_run_args(
-        tag="deobfuscator-php-sandbox:test",
+        tag="evilbox-php-sandbox:test",
         sample=sample,
         log_dir=logs,
         mode="observe",
         timeout=15,
-        container_name="deobfuscator-test",
+        container_name="evilbox-test",
     )
     assert "--network" in args
     assert args[args.index("--network") + 1] == "none"

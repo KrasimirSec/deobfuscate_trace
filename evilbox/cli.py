@@ -5,16 +5,16 @@ import json
 import sys
 from pathlib import Path
 
-from deobfuscator.detect import detect_language
-from deobfuscator.extract import extract_indicators, format_indicators
-from deobfuscator.pipeline import deobfuscate
-from deobfuscator.sandbox import SandboxError, default_logs_root, run_php_sandbox
+from evilbox.detect import detect_language
+from evilbox.extract import extract_indicators, format_indicators
+from evilbox.pipeline import deobfuscate
+from evilbox.sandbox import SandboxError, default_logs_root, run_php_sandbox
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="deobfuscate",
-        description="Statically deobfuscate JavaScript or PHP. Optional Docker PHP sandbox for eval dumps and fake-net logging.",
+        prog="evilbox",
+        description="Evilbox: statically deobfuscate JavaScript or PHP. Optional Docker PHP sandbox for eval dumps and fake-net logging.",
     )
     parser.add_argument("input", help="Input file path, or - for stdin")
     parser.add_argument("-o", "--output", help="Write result to this file (default: stdout)")
@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--logs-dir",
-        help="Directory for sandbox logs (default: ./sandbox-logs)",
+        help="Directory for sandbox logs (default: EVILBOX_LOGS or ./sandbox-logs)",
     )
     parser.add_argument(
         "--timeout",
@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
         if lang == "js":
             print(
                 "warning: --sandbox dump/observe uses the PHP evalhook lab; "
-                "this file is JavaScript, so running the JS deobfuscator instead.",
+                "this file is JavaScript, so running static JS cleanup instead.",
                 file=sys.stderr,
             )
             result = deobfuscate(source, language="js", path=path, max_passes=args.max_passes)

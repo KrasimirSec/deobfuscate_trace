@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from deobfuscator.detect import detect_language
-from deobfuscator.extract import Indicators, extract_indicators
-from deobfuscator.js.passes import transform_js
-from deobfuscator.js.pretty import pretty_js
-from deobfuscator.parsers import parse_js, parse_php
-from deobfuscator.php.passes import transform_php
-from deobfuscator.php.pretty import pretty_php
-from deobfuscator.rewrite import has_error
+from evilbox.detect import detect_language
+from evilbox.extract import Indicators, extract_indicators
+from evilbox.js.passes import transform_js
+from evilbox.js.pretty import pretty_js
+from evilbox.parsers import parse_js, parse_php
+from evilbox.php.passes import transform_php
+from evilbox.php.pretty import pretty_php
+from evilbox.rewrite import has_error
 
 
 @dataclass

@@ -1,4 +1,4 @@
-# deobfuscator
+# Evilbox
 
 CLI that **statically** deobfuscates JavaScript and PHP. It unwraps common encodings and rewrites the syntax tree. It does **not** execute the input (no `eval` in a JS or PHP engine).
 
@@ -13,10 +13,12 @@ pip install -e ".[dev]"
 ## Usage
 
 ```text
-deobfuscate packed.js -o clean.js
-deobfuscate packed.php --lang php
-deobfuscate - --lang js < packed.js
+evilbox packed.js -o clean.js
+evilbox packed.php --lang php
+evilbox - --lang js < packed.js
 ```
+
+`deobfuscate` is kept as an alias for the same CLI.
 
 | Flag | Meaning |
 | --- | --- |
@@ -39,8 +41,8 @@ Inside the container:
 - tcpdump writes `traffic.pcap` on loopback
 
 ```text
-deobfuscate packed.php --sandbox dump
-deobfuscate packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
+evilbox packed.php --sandbox dump
+evilbox packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
 ```
 
 | Mode | Behavior |
@@ -48,7 +50,7 @@ deobfuscate packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
 | `dump` | Log eval payloads and **do not** execute them |
 | `observe` | Log eval payloads **and** let the script run (requests hit the fake sink) |
 
-Logs land in `./sandbox-logs/<timestamp-id>/` (`domains.txt`, `http.jsonl`, `dns.log`, `eval-*.php`, `deobfuscated.php`, `indicators.json`, `traffic.pcap`). Domains are also printed on stderr. Stdout is the static cleanup of the last eval dump (or the original file if none).
+Logs land in `./sandbox-logs/<timestamp-id>/` (`domains.txt`, `http.jsonl`, `dns.log`, `eval-*.php`, `deobfuscated.php`, `indicators.json`, `traffic.pcap`). Override the default root with `EVILBOX_LOGS`. Domains are also printed on stderr. Stdout is the static cleanup of the last eval dump (or the original file if none).
 
 After deobfuscation the CLI prints an **indicators** block on stderr (URLs, domains, IPs, emails, dropped filenames, Windows/UNC paths, registry keys, and APIs such as `WScript.Shell` / `ActiveXObject`). If you pass `-o clean.js`, the same data is written to `clean.iocs.json`.
 

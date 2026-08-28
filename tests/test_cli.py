@@ -1,4 +1,4 @@
-from deobfuscator.cli import main
+from evilbox.cli import main
 
 
 def test_cli_js_stdout(tmp_path, capsys):

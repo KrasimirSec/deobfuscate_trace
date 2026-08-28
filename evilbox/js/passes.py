@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from deobfuscator.decode import (
+from evilbox.decode import (
     b64decode,
     bytes_to_text,
     format_js_number,
@@ -15,8 +15,8 @@ from deobfuscator.decode import (
     unescape_html_entities,
     unescape_js_string_body,
 )
-from deobfuscator.parsers import parse_js
-from deobfuscator.rewrite import apply_replacements, node_text, walk
+from evilbox.parsers import parse_js
+from evilbox.rewrite import apply_replacements, node_text, walk
 
 JS_JUNK_RE = re.compile(r"^_0x[0-9a-fA-F]+$")
 JS_HEX_NAME_RE = re.compile(r"^_?[a-f0-9]{6,}$", re.I)
