@@ -1,0 +1,3 @@
+# Official PHP image. Digest is a multi-arch index (amd64 + arm64), PHP 8.3.33-cli-bookworm.
+# Inspected 2026-08-28: docker buildx imagetools inspect php:8.3-cli-bookworm
+php:8.3-cli-bookworm@sha256:177529735599a8244b2c903522f029839dce1c2ac4be122fdc00ada4b45a20e4

@@ -1,0 +1,27 @@
+[project]
+name = "deobfuscator"
+version = "0.1.0"
+description = "Static JavaScript and PHP deobfuscator CLI"
+requires-python = ">=3.10"
+dependencies = [
+    "tree-sitter>=0.23",
+    "tree-sitter-javascript>=0.23",
+    "tree-sitter-php>=0.23",
+    "jsbeautifier>=1.14",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+deobfuscate = "deobfuscator.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["deobfuscator"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
