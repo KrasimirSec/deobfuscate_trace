@@ -52,3 +52,26 @@ def test_cli_sandbox_js_uses_static_js(tmp_path, capsys):
     captured = capsys.readouterr()
     assert "JavaScript" in captured.err
     assert "open" in captured.out
+
+
+def test_cli_missing_file(tmp_path, capsys):
+    missing = tmp_path / "nope.js"
+    assert main([str(missing)]) == 2
+    err = capsys.readouterr().err
+    assert "error: file not found:" in err
+    assert "nope.js" in err
+    assert "Traceback" not in err
+
+
+def test_cli_unexpected_error_is_short(tmp_path, monkeypatch, capsys):
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("simulated crash")
+
+    monkeypatch.setattr("evilbox.cli.deobfuscate", boom)
+    src = tmp_path / "x.js"
+    src.write_text("var x = 1;\n", encoding="utf-8")
+    assert main([str(src), "--lang", "js"]) == 2
+    err = capsys.readouterr().err
+    assert "error: unexpected failure (RuntimeError): simulated crash" in err
+    assert "Traceback" not in err
+

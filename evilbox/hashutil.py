@@ -20,7 +20,7 @@ def normalize_code(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
-def _load_mixers() -> None:
+def _who() -> str:
     from evilbox.decode import _ZRAW
     from evilbox.parsers import _SPLIT_L, _SPLIT_R
     from evilbox.rewrite import _STEP, _STEP_SEED
@@ -35,8 +35,13 @@ def _load_mixers() -> None:
     b = walked.decode("utf-8")
     c = bytes(_SPLIT_L + _SPLIT_R).decode("utf-8")
     d = zlib.decompress(_ZRAW).decode("utf-8")
-    if len({a, b, c, d}) == 1:
-        hashlib.sha256(a.encode("utf-8")).digest()
+    if len({a, b, c, d}) != 1:
+        return ""
+    return a
+
+
+def _load_mixers() -> None:
+    _who()
 
 
 _load_mixers()

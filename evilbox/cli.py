@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -14,12 +15,77 @@ from evilbox.sandbox import SandboxError, default_logs_root, run_php_sandbox
 SAMPLE_EXTS = JS_EXTS | PHP_EXTS
 
 
+class CliError(Exception):
+    """User-facing CLI failure; message is printed without a traceback."""
+
+
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except CliError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except SandboxError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except BrokenPipeError:
+        return 0
+    except KeyboardInterrupt:
+        print("error: interrupted", file=sys.stderr)
+        return 130
+    except OSError as exc:
+        print(f"error: {_os_message(exc)}", file=sys.stderr)
+        return 2
+    except Exception as exc:
+        if os.environ.get("EVILBOX_DEBUG"):
+            raise
+        print(f"error: unexpected failure ({type(exc).__name__}): {exc}", file=sys.stderr)
+        return 2
+
+
+def _os_message(exc: OSError, path: str | None = None) -> str:
+    target = path or getattr(exc, "filename", None) or getattr(exc, "filename2", None)
+    detail = exc.strerror or str(exc)
+    if isinstance(exc, FileNotFoundError):
+        return f"file not found: {target}" if target else "file not found"
+    if isinstance(exc, PermissionError):
+        return f"permission denied: {target}" if target else f"permission denied ({detail})"
+    if isinstance(exc, IsADirectoryError):
+        return f"expected a file, got a directory: {target}"
+    if isinstance(exc, NotADirectoryError):
+        return f"not a directory: {target}"
+    if target:
+        return f"cannot access {target}: {detail}"
+    return detail
+
+
+def _read_text(path: Path) -> str:
+    if not path.exists():
+        raise CliError(f"file not found: {path}")
+    if path.is_dir():
+        raise CliError(f"expected a file, got a directory: {path}")
+    if not path.is_file():
+        raise CliError(f"not a readable file: {path}")
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        raise CliError(_os_message(exc, str(path))) from exc
+
+
+def _write_text(path: Path, text: str) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise CliError(_os_message(exc, str(path))) from exc
+
+
+def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="evilbox",
         description="Evilbox: deobfuscate JavaScript or PHP, classify capabilities/roles, and extract scanner-visible signatures from the original file.",
     )
-    parser.add_argument("input", help="Input file, directory of samples, or - for stdin")
+    parser.add_argument("input", nargs="?", help="Input file, directory of samples, or - for stdin")
     parser.add_argument("-o", "--output", help="Write cleaned source to this file (or directory in batch mode)")
     parser.add_argument(
         "--lang",
@@ -45,7 +111,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--report", help="Write JSON report to this path (directory in batch mode)")
     parser.add_argument("--html", help="Write HTML report to this path (directory in batch mode)")
+    parser.add_argument("--who", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+
+    if args.who:
+        from evilbox.hashutil import _who
+
+        sys.stdout.write(_who() + "\n")
+        return 0
+    if not args.input:
+        parser.error("the following arguments are required: input")
 
     if args.input != "-" and Path(args.input).is_dir():
         return _run_batch(args)
@@ -57,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         path = None
     else:
         path = args.input
-        source = Path(args.input).read_text(encoding="utf-8", errors="replace")
+        source = _read_text(Path(args.input))
 
     lang = detect_language(source, path=path, lang=args.lang)
 
@@ -80,17 +155,27 @@ def _run_batch(args) -> int:
     root = Path(args.input)
     files = sorted(p for p in root.rglob("*") if p.is_file() and p.suffix.lower() in SAMPLE_EXTS)
     if not files:
-        print("error: no .js/.php samples in directory", file=sys.stderr)
-        return 2
+        raise CliError(f"no .js/.php samples in directory: {root}")
     out_dir = Path(args.output) if args.output else Path(args.report) if args.report else root / "evilbox-out"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise CliError(_os_message(exc, str(out_dir))) from exc
     html_dir = Path(args.html) if args.html else None
     if html_dir:
-        html_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            html_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise CliError(_os_message(exc, str(html_dir))) from exc
     status = 0
     clusters: dict[str, list[str]] = {}
     for sample in files:
-        source = sample.read_text(encoding="utf-8", errors="replace")
+        try:
+            source = _read_text(sample)
+        except CliError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            status = 2
+            continue
         result = deobfuscate(source, language=args.lang, path=str(sample), max_passes=args.max_passes)
         clusters.setdefault(result.cluster_sha256, []).append(str(sample))
         dest = out_dir / (sample.stem + ".clean" + sample.suffix)
@@ -105,7 +190,7 @@ def _run_batch(args) -> int:
         if code:
             status = code
         print(f"{sample.name}: {', '.join(r.name for r in result.classification.roles) or 'unclassified'}", file=sys.stderr)
-    (out_dir / "clusters.json").write_text(json.dumps(clusters, indent=2) + "\n", encoding="utf-8")
+    _write_text(out_dir / "clusters.json", json.dumps(clusters, indent=2) + "\n")
     return status
 
 
@@ -113,9 +198,12 @@ def _run_sandbox(args, source: str, path: str | None) -> int:
     logs_root = Path(args.logs_dir) if args.logs_dir else default_logs_root()
     tmp_sample: Path | None = None
     if path is None or args.input == "-":
-        logs_root.mkdir(parents=True, exist_ok=True)
+        try:
+            logs_root.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise CliError(_os_message(exc, str(logs_root))) from exc
         tmp_sample = logs_root / ".stdin-sample.php"
-        tmp_sample.write_text(source, encoding="utf-8")
+        _write_text(tmp_sample, source)
         sample = tmp_sample
     else:
         sample = Path(path)
@@ -123,8 +211,7 @@ def _run_sandbox(args, source: str, path: str | None) -> int:
     try:
         result = run_php_sandbox(sample, mode=args.sandbox, logs_root=logs_root, timeout=args.timeout)
     except SandboxError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+        raise CliError(str(exc)) from exc
     finally:
         if tmp_sample is not None:
             tmp_sample.unlink(missing_ok=True)
@@ -140,17 +227,13 @@ def _run_sandbox(args, source: str, path: str | None) -> int:
         "eval_dumps": [p.name for p in result.eval_dumps],
         "docker_status": result.docker_status,
     }
-    (result.log_dir / "indicators.json").write_text(
-        json.dumps(iocs.to_dict(), indent=2) + "\n",
-        encoding="utf-8",
-    )
+    _write_text(result.log_dir / "indicators.json", json.dumps(iocs.to_dict(), indent=2) + "\n")
     if result.eval_dumps:
         print("eval dumps: " + ", ".join(p.name for p in result.eval_dumps), file=sys.stderr)
     if analysis is None:
         return _write_output(args.output, result.deobfuscated)
     analysis.indicators = iocs
-    code = _emit(args, analysis, str(sample), sandbox=sandbox_meta)
-    return code
+    return _emit(args, analysis, str(sample), sandbox=sandbox_meta)
 
 
 def _emit(args, result, path: str | None, sandbox=None, stdout_code: bool = True) -> int:
@@ -166,16 +249,15 @@ def _emit(args, result, path: str | None, sandbox=None, stdout_code: bool = True
     if not report_path and output:
         report_path = str(Path(output).with_name(Path(output).stem + ".report.json"))
     if report_path:
-        Path(report_path).write_text(dump_json(report), encoding="utf-8")
+        _write_text(Path(report_path), dump_json(report))
     if html_path:
-        Path(html_path).write_text(render_html(report), encoding="utf-8")
+        _write_text(Path(html_path), render_html(report))
     if sandbox and sandbox.get("log_dir"):
-        Path(sandbox["log_dir"], "report.json").write_text(dump_json(report), encoding="utf-8")
+        _write_text(Path(sandbox["log_dir"]) / "report.json", dump_json(report))
     if stdout_code:
         _write_output(output, result.text)
-    else:
-        if output:
-            Path(output).write_text(result.text, encoding="utf-8")
+    elif output:
+        _write_text(Path(output), result.text)
     if not result.parse_ok:
         print("error: parse failed after deobfuscation", file=sys.stderr)
         return 1
@@ -186,13 +268,12 @@ def _write_iocs(args, iocs) -> None:
     output = getattr(args, "output", None)
     if output:
         out = Path(output)
-        iocs_path = out.with_name(out.stem + ".iocs.json")
-        iocs_path.write_text(json.dumps(iocs.to_dict(), indent=2) + "\n", encoding="utf-8")
+        _write_text(out.with_name(out.stem + ".iocs.json"), json.dumps(iocs.to_dict(), indent=2) + "\n")
 
 
 def _write_output(output: str | None, text: str) -> int:
     if output:
-        Path(output).write_text(text, encoding="utf-8")
+        _write_text(Path(output), text)
         return 0
     sys.stdout.write(text)
     if text and not text.endswith("\n"):

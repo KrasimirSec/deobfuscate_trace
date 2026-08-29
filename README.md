@@ -39,7 +39,7 @@ If the input is a directory, Evilbox walks `.js` / `.php` files, writes `*.clean
 
 `-o clean.js` also writes `clean.iocs.json` and `clean.report.json` unless `--report` is set.
 
-Stderr prints indicators, **roles**, **capabilities**, **packer hints**, **cluster hash**, and **surface signatures**. Exit status `1` means the result still does not parse cleanly; the best-effort output is still written.
+Exit status `1` means the result still does not parse cleanly; the best-effort output is still written. Missing files, permission problems, and other failures print a short `error:` line (exit `2`) instead of a traceback. Set `EVILBOX_DEBUG=1` if you need the full stack.
 
 ## Classification
 
@@ -136,3 +136,14 @@ Requires Docker. The sample never gets a route to the public internet (`--networ
 ```bash
 pytest
 ```
+
+## License
+
+Evilbox is **dual-licensed**:
+
+- **[GPL-3.0](LICENSE.GPL-3.0)** (copyleft) — personal use, research, education, and any use where you follow the GPL (including sharing source of derivatives).
+- **[Commercial](LICENSE.COMMERCIAL)** (paid) — proprietary or closed-source products, paid services, and for-profit use without GPL obligations. You need a written agreement and payment from the copyright holder (Krasimir Konov). Contact via [the GitHub repo](https://github.com/KrasimirSec/evilbox).
+
+See [LICENSE](LICENSE) for how the two paths work. Vendored php-eval-hook stays MIT.
+
+This is not legal advice.

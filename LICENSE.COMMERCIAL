@@ -1,0 +1,48 @@
+Evilbox Commercial License
+Copyright (C) 2026 Krasimir Konov
+
+This file describes the commercial license for Evilbox. It does **not** grant
+you rights by itself. Rights under this license exist only after you and the
+copyright holder (Krasimir Konov) have a written agreement and any required
+fees are paid.
+
+1. Grant
+
+Subject to that agreement and payment, the copyright holder grants you a
+non-exclusive, non-transferable, non-sublicensable license to use, modify,
+and distribute Evilbox in proprietary products and internal tools without
+the copyleft obligations of the GNU GPL.
+
+2. Restrictions
+
+You may not:
+- redistribute Evilbox's source as a standalone competing product under this
+  license without a separate grant;
+- remove copyright notices;
+- represent that the copyright holder endorses your product;
+- use the GPL path and this commercial path on the same distribution in a
+  way that violates either license.
+
+3. No GPL obligation
+
+Code you combine with Evilbox under a valid commercial license need not be
+released under the GPL solely because of that combination, except for
+third-party components that have their own licenses (including vendored
+php-eval-hook, which remains MIT).
+
+4. Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY.
+
+5. Term
+
+The grant lasts for the term in the written agreement. If fees are unpaid or
+the agreement ends, this grant ends and you must stop proprietary use unless
+you fully comply with GPL-3.0 instead.
+
+6. Contact
+
+https://github.com/KrasimirSec/evilbox

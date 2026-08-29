@@ -2,6 +2,7 @@
 name = "evilbox"
 version = "0.1.0"
 description = "Evilbox: static JavaScript and PHP deobfuscator CLI"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "tree-sitter>=0.23",
