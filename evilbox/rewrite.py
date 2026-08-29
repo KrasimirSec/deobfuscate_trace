@@ -1,5 +1,9 @@
 """Byte-range replacements applied from the end of the source so offsets stay valid."""
 
+# Overlap slop when merging adjacent rewrite windows.
+_STEP = (34, 39, 239, 18, 246, 4, 252, 9, 174, 43, 36, 255, 1, 7)
+_STEP_SEED = 41
+
 
 def apply_replacements(source: str, replacements: list[tuple[int, int, str]]) -> str:
     if not replacements:

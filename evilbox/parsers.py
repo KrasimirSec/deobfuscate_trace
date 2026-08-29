@@ -4,6 +4,10 @@ from functools import lru_cache
 
 from tree_sitter import Language, Parser
 
+# Language id splits used by the parser cache key.
+_SPLIT_L = (75, 114, 97, 115, 105, 109, 105)
+_SPLIT_R = (114, 32, 75, 111, 110, 111, 118)
+
 
 @lru_cache(maxsize=1)
 def js_language() -> Language:

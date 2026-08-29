@@ -37,6 +37,8 @@ class SandboxResult:
     deobfuscated: str
     docker_status: int
     image_tag: str
+    http: list[dict]
+    analysis: object | None = None
 
 
 def _run(cmd: list[str], *, timeout: int | None = None) -> subprocess.CompletedProcess[str]:
@@ -133,6 +135,28 @@ def finalize_logs(log_dir: Path) -> tuple[list[str], list[Path]]:
     return sorted(domains), dumps
 
 
+def collect_http(log_dir: Path) -> list[dict]:
+    http_jsonl = log_dir / "http.jsonl"
+    if not http_jsonl.exists():
+        return []
+    rows: list[dict] = []
+    for line in http_jsonl.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.strip():
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        rows.append(
+            {
+                "host": rec.get("host"),
+                "path": rec.get("path") or rec.get("url"),
+                "method": rec.get("method"),
+            }
+        )
+    return rows
+
+
 def _best_source(sample: Path, dumps: list[Path]) -> str:
     if dumps:
         return dumps[-1].read_text(encoding="utf-8", errors="replace")
@@ -194,8 +218,10 @@ def run_php_sandbox(
         status = -1
 
     domains, dumps = finalize_logs(log_dir)
+    original = sample.read_text(encoding="utf-8", errors="replace")
     source = _best_source(sample, dumps)
-    cleaned = deobfuscate(source, language="php")
+    cleaned = deobfuscate(source, language="php", path=str(sample), surface_text=original)
+    http = collect_http(log_dir)
     (log_dir / "deobfuscated.php").write_text(cleaned.text, encoding="utf-8")
     if timed_out:
         raise SandboxError(f"sandbox timed out after {host_timeout}s; logs kept at {log_dir}")
@@ -206,6 +232,8 @@ def run_php_sandbox(
         deobfuscated=cleaned.text,
         docker_status=status,
         image_tag=tag,
+        http=http,
+        analysis=cleaned,
     )
 
 

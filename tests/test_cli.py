@@ -17,6 +17,34 @@ def test_cli_output_file(tmp_path):
     assert "3" in dest.read_text(encoding="utf-8")
 
 
+def test_cli_report_json(tmp_path, capsys):
+    src = tmp_path / "packed.php"
+    src.write_text("<?php eval($_POST['x']);", encoding="utf-8")
+    dest = tmp_path / "clean.php"
+    report = tmp_path / "rep.json"
+    assert main([str(src), "-o", str(dest), "--report", str(report), "--lang", "php"]) == 0
+    data = report.read_text(encoding="utf-8")
+    assert "evilbox.report.v1" in data
+    assert "webshell" in data
+    assert "surface_signatures" in data
+    err = capsys.readouterr().err
+    assert "roles:" in err
+    assert "surface signatures" in err
+
+
+def test_cli_batch(tmp_path):
+    folder = tmp_path / "samples"
+    folder.mkdir()
+    (folder / "a.js").write_text('var x = "a" + "b";\n', encoding="utf-8")
+    (folder / "b.php").write_text("<?php echo 1+2;", encoding="utf-8")
+    out = tmp_path / "out"
+    assert main([str(folder), "-o", str(out)]) == 0
+    assert (out / "a.clean.js").is_file()
+    assert (out / "b.clean.php").is_file()
+    assert (out / "a.report.json").is_file()
+    assert (out / "clusters.json").is_file()
+
+
 def test_cli_sandbox_js_uses_static_js(tmp_path, capsys):
     src = tmp_path / "x.js"
     src.write_text('var a = ["en"]; var b = ["op"]; var x = b[0] + a[0];\n', encoding="utf-8")

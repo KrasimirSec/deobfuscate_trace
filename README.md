@@ -16,15 +16,33 @@ pip install -e ".[dev]"
 evilbox packed.js -o clean.js
 evilbox packed.php --lang php
 evilbox - --lang js < packed.js
+evilbox packed.php --report report.json --html report.html
+evilbox ./samples -o ./evilbox-out
 ```
 
 | Flag | Meaning |
 | --- | --- |
 | `--lang auto\|js\|php` | Language (default: `auto` from path and contents) |
-| `-o PATH` | Write to a file instead of stdout |
+| `-o PATH` | Write cleaned source to a file (or a directory when the input is a folder) |
+| `--report PATH` | JSON report (roles, capabilities, layers, IOCs, surface signatures) |
+| `--html PATH` | HTML report |
 | `--max-passes N` | Unwrap/fold iterations (default: 8) |
 
+If the input is a directory, Evilbox walks `.js` / `.php` files, writes `*.clean.*` plus `*.report.json`, and a `clusters.json` map of similar inner-layer hashes.
+
+Stderr includes **roles**, **capabilities**, **packer hints**, and **surface signatures** taken only from the original file (what a scanner would see on the website). Inner decoded strings are not used for those YARA needles.
+
+`-o clean.js` also writes `clean.iocs.json` and `clean.report.json` unless `--report` is set.
+
 Exit status `1` means the result still does not parse cleanly. Warnings go to stderr; the best-effort output is still written.
+
+## Classification
+
+Roles are multi-label and evidence-backed (webshell, backdoor, dropper, injector, seo-spam, mailer, stealer, phishing-kit, cryptominer, wiper). They are derived from capabilities such as `eval-runtime`, `exec`, `superglobals`, `fs-write`, `net-egress`, and `seo-inject`.
+
+## Surface signatures
+
+The original layer is mined for decoder wrappers (`eval(base64_decode(`…), long packed strings (including base64 blobs), stable variable/function names that are not `_0x` junk, and distinctive comments. Each item includes a `yara` needle.
 
 ## PHP sandbox (evalhook, no real internet)
 
@@ -50,7 +68,7 @@ evilbox packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
 
 Logs land in `./sandbox-logs/<timestamp-id>/` (`domains.txt`, `http.jsonl`, `dns.log`, `eval-*.php`, `deobfuscated.php`, `indicators.json`, `traffic.pcap`). Override the default root with `EVILBOX_LOGS`. Domains are also printed on stderr. Stdout is the static cleanup of the last eval dump (or the original file if none).
 
-After deobfuscation the CLI prints an **indicators** block on stderr (URLs, domains, IPs, emails, dropped filenames, Windows/UNC paths, registry keys, and APIs such as `WScript.Shell` / `ActiveXObject`). If you pass `-o clean.js`, the same data is written to `clean.iocs.json`.
+After deobfuscation the CLI prints an **indicators** block on stderr (URLs, domains, IPs, emails, dropped filenames, Windows/UNC paths, registry keys, and APIs such as `WScript.Shell` / `ActiveXObject`), plus roles and original-layer signature needles. If you pass `-o clean.js`, IOCs are written to `clean.iocs.json`. Sandbox runs also write `report.json` in the log directory.
 
 Requires Docker. The sample never gets a route to the public internet (`--network none`). That is still **malware execution inside the container** in `observe` mode — only use samples you intend to analyze.
 
@@ -66,8 +84,9 @@ Requires Docker. The sample never gets a route to the public internet (`--networ
 - Concatenate adjacent string literals (`+` in JS, `.` in PHP)
 - Fold simple numeric/boolean constants (`1+2`, `!0`)
 - JS: `eval(atob(...))`, `unescape` / `decodeURIComponent`, `String.fromCharCode(...)` when arguments are literals
-- PHP: `eval(base64_decode(...))`, `gzinflate` / `gzuncompress` / `gzdecode`, `str_rot13`, `hex2bin`, `pack('H*', ...)`
+- PHP: `eval` / `assert` / `create_function` / `preg_replace /e` / `include` of decoded payloads, `gzinflate` / `gzuncompress` / `gzdecode`, `str_rot13`, `hex2bin`, `pack('H*', ...)`, string XOR, `chr` / `strtr`, `$arr[i]` folding
 - Rename `_0x...` junk identifiers (and PHP `$` hex names of that form)
+- Layer timeline, packer hints, capability/role classification, and scanner-visible signatures from the original file
 
 Not in v1: control-flow flattening, VM/dispatcher unpackers, or running a JavaScript engine.
 

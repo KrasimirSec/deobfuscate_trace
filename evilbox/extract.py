@@ -206,6 +206,21 @@ def extract_indicators(*texts: str, extra_domains: list[str] | None = None) -> I
     )
 
 
+def locate_indicators(layers: list[tuple[str, str]], extra_domains: list[str] | None = None) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for name, text in layers:
+        iocs = extract_indicators(text, extra_domains=extra_domains if name in {"inner", "sandbox"} else None)
+        for kind, values in iocs.to_dict().items():
+            for value in values:
+                key = (kind, value.lower(), name)
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append({"kind": kind, "value": value, "layer": name})
+    return rows
+
+
 def format_indicators(iocs: Indicators) -> str:
     if iocs.is_empty():
         return "indicators: (none)\n"

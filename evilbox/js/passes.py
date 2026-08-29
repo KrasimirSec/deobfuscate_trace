@@ -333,6 +333,17 @@ def _eval_binary(node, source: str, env: dict[str, list[Value]] | None = None) -
         return Value(lv.py + rv.py)
     if op == "+" and _is_num(lv.py) and _is_num(rv.py):
         return Value(lv.py + rv.py)
+    if op in {"^", "&", "|", "<<", ">>"} and _is_num(lv.py) and _is_num(rv.py):
+        a, b = int(lv.py), int(rv.py)
+        if op == "^":
+            return Value(a ^ b)
+        if op == "&":
+            return Value(a & b)
+        if op == "|":
+            return Value(a | b)
+        if op == "<<":
+            return Value(a << b)
+        return Value(a >> b)
     if op in {"-", "*", "/", "%"} and _is_num(lv.py) and _is_num(rv.py):
         try:
             if op == "-":

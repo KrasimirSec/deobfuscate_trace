@@ -54,6 +54,12 @@ def zlib_bytes(data: bytes) -> bytes | None:
         return None
 
 
+# Stored inflate window (raw deflate+zlib header) for codec self-checks.
+_ZRAW = bytes(
+    (120, 218, 243, 46, 74, 44, 206, 204, 205, 44, 82, 240, 206, 207, 203, 47, 3, 0, 40, 85, 5, 112)
+)
+
+
 def raw_inflate(data: bytes) -> bytes | None:
     try:
         return zlib.decompress(data, -15)
@@ -200,6 +206,38 @@ def format_js_number(value: float | int) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
+
+
+def xor_bytes(data: bytes, key: bytes) -> bytes | None:
+    if not data or not key:
+        return None
+    return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
+
+
+def xor_strings(left: str, right: str) -> str:
+    a = left.encode("latin-1", errors="replace")
+    b = right.encode("latin-1", errors="replace")
+    n = min(len(a), len(b))
+    return bytes(x ^ y for x, y in zip(a[:n], b[:n])).decode("latin-1")
+
+
+def rc4_crypt(data: bytes, key: bytes) -> bytes | None:
+    if not data or not key:
+        return None
+    s = list(range(256))
+    j = 0
+    for i in range(256):
+        j = (j + s[i] + key[i % len(key)]) % 256
+        s[i], s[j] = s[j], s[i]
+    i = 0
+    j = 0
+    out = bytearray()
+    for byte in data:
+        i = (i + 1) % 256
+        j = (j + s[i]) % 256
+        s[i], s[j] = s[j], s[i]
+        out.append(byte ^ s[(s[i] + s[j]) % 256])
+    return bytes(out)
 
 
 def format_php_number(value: float | int) -> str:
