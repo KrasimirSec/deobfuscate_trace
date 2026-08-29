@@ -1,6 +1,8 @@
 # Evilbox
 
-CLI that **statically** deobfuscates JavaScript and PHP. It unwraps common encodings and rewrites the syntax tree. It does **not** execute the input (no `eval` in a JS or PHP engine).
+CLI that **statically** deobfuscates JavaScript and PHP, then helps with **analysis and classification**. It unwraps common encodings, rewrites the syntax tree, labels capabilities and malware roles, extracts IOCs, and suggests **scanner-visible** strings from the original packed file.
+
+It does **not** execute the input in a JS or PHP engine. The optional Docker PHP sandbox is a separate, isolated lab.
 
 ## Install
 
@@ -18,31 +20,89 @@ evilbox packed.php --lang php
 evilbox - --lang js < packed.js
 evilbox packed.php --report report.json --html report.html
 evilbox ./samples -o ./evilbox-out
+evilbox packed.php --sandbox dump
+evilbox packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
 ```
 
 | Flag | Meaning |
 | --- | --- |
 | `--lang auto\|js\|php` | Language (default: `auto` from path and contents) |
 | `-o PATH` | Write cleaned source to a file (or a directory when the input is a folder) |
-| `--report PATH` | JSON report (roles, capabilities, layers, IOCs, surface signatures) |
+| `--report PATH` | JSON report (`evilbox.report.v1`) |
 | `--html PATH` | HTML report |
 | `--max-passes N` | Unwrap/fold iterations (default: 8) |
+| `--sandbox dump\|observe` | Isolated PHP Docker lab (JS files stay on the static path) |
+| `--logs-dir PATH` | Sandbox log root (default: `EVILBOX_LOGS` or `./sandbox-logs`) |
+| `--timeout N` | Sandbox PHP timeout in seconds (default: 15) |
 
 If the input is a directory, Evilbox walks `.js` / `.php` files, writes `*.clean.*` plus `*.report.json`, and a `clusters.json` map of similar inner-layer hashes.
 
-Stderr includes **roles**, **capabilities**, **packer hints**, and **surface signatures** taken only from the original file (what a scanner would see on the website). Inner decoded strings are not used for those YARA needles.
-
 `-o clean.js` also writes `clean.iocs.json` and `clean.report.json` unless `--report` is set.
 
-Exit status `1` means the result still does not parse cleanly. Warnings go to stderr; the best-effort output is still written.
+Stderr prints indicators, **roles**, **capabilities**, **packer hints**, **cluster hash**, and **surface signatures**. Exit status `1` means the result still does not parse cleanly; the best-effort output is still written.
 
 ## Classification
 
-Roles are multi-label and evidence-backed (webshell, backdoor, dropper, injector, seo-spam, mailer, stealer, phishing-kit, cryptominer, wiper). They are derived from capabilities such as `eval-runtime`, `exec`, `superglobals`, `fs-write`, `net-egress`, and `seo-inject`.
+Roles are **multi-label** and evidence-backed. A sample can be a webshell and a mailer at the same time. Each role includes a score and snippets (layer + short excerpt).
+
+| Role | Typical evidence |
+| --- | --- |
+| `webshell` | `eval` / `assert` / `create_function` / `preg_replace /e` or OS exec, plus `$_GET` / `$_POST` / `$_COOKIE` / … |
+| `backdoor` | Outbound HTTP/sockets plus eval, exec, or persistence |
+| `dropper` | File write plus network, or a URL that drops `.exe` / `.dll` / `.ps1` / … |
+| `injector` | Remote/dynamic `include`/`require`, or eval plus file write |
+| `seo-spam` | Hidden links, `googlebot` / `bingbot` checks, WordPress post injection |
+| `mailer` | `mail()` / PHPMailer / SMTP |
+| `stealer` | Credential/cookie/wallet harvest plus read or exfil |
+| `phishing-kit` | Brand/OTP lures plus credential collection or file write |
+| `cryptominer` | stratum / xmrig / miner pools |
+| `wiper` | `unlink` / `rmdir` without webshell-style eval + superglobals |
+
+Capabilities behind those labels include `eval-runtime`, `exec`, `superglobals`, `fs-write`, `fs-read`, `fs-delete`, `net-egress`, `persist`, `seo-inject`, `mail`, `credential-harvest`, `miner`, `phishing`, `payload-drop`, and `include-remote`.
+
+These are static (and sandbox-augmented) rules, not AV family names. Treat scores as hints and read the evidence.
+
+## Reports
+
+JSON schema id: `evilbox.report.v1`. Fields include:
+
+- **sample** — path, language, SHA-256 of the original file, SHA-256 of the inner layer, `cluster_sha256` (whitespace-normalized inner code for clustering)
+- **packer** — hints such as `eval+base64`, `fromCharCode`, `preg_replace/e`
+- **layers** — original → unwrap passes → inner (sandbox eval dumps are their own layer)
+- **roles** / **capabilities** — with evidence snippets
+- **indicators** — URLs, domains, IPs, emails, files, paths, registry, APIs
+- **indicators_by_layer** — the same IOCs tagged with the layer they appeared in
+- **surface_signatures** — YARA-oriented needles from the **original** file only
+- **sandbox** — present when `--sandbox` was used (log dir, DNS hosts, HTTP, eval dump names)
+
+`--html` is the same data as a simple HTML page.
 
 ## Surface signatures
 
-The original layer is mined for decoder wrappers (`eval(base64_decode(`…), long packed strings (including base64 blobs), stable variable/function names that are not `_0x` junk, and distinctive comments. Each item includes a `yara` needle.
+Inner decoded strings are **not** used for signature suggestions. A web scanner sees the packed file, not the unpacked payload.
+
+From the original layer only, Evilbox collects:
+
+- Decoder wrappers (`eval(base64_decode(…`, `String.fromCharCode(…`, `preg_replace` with `/e`, …)
+- Long packed strings, including base64 blobs (a distinctive substring, not the full dump)
+- Stable variable and function names that are not `_0x…` junk
+- Distinctive comments
+
+Each item has `kind`, `value`, a `yara` needle, and a short `why`.
+
+## Unpacking
+
+Still static: no JS/PHP engine.
+
+- Unescape string literals (`\xNN`, `\uNNNN`, octal, HTML entities)
+- Concatenate adjacent string literals (`+` in JS, `.` in PHP)
+- Fold simple numeric/boolean constants (`1+2`, `!0`) and JS bitwise ops
+- JS: `eval(atob(...))`, `unescape` / `decodeURIComponent`, `String.fromCharCode(...)` when arguments are literals; fold `name[i]` on constant arrays
+- PHP: `eval` / `assert` / `create_function` / `preg_replace /e` / `include`/`require` of decoded payloads
+- PHP: `base64_decode`, `gzinflate` / `gzuncompress` / `gzdecode`, `str_rot13`, `hex2bin`, `pack('H*', ...)`, string XOR, repeating-key `xor` / `rc4` when both arguments are constants, `chr` / `strtr` / `str_repeat`, `$arr[i]` folding
+- Rename `_0x...` junk identifiers (and PHP `$` hex names of that form)
+
+Not included: control-flow flattening, VM/dispatcher unpackers, or running a JavaScript engine.
 
 ## PHP sandbox (evalhook, no real internet)
 
@@ -56,19 +116,12 @@ Inside the container:
 - a **sandbox CA** is generated at start and trusted by PHP `curl` / OpenSSL so HTTPS still completes
 - tcpdump writes `traffic.pcap` on loopback
 
-```text
-evilbox packed.php --sandbox dump
-evilbox packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
-```
-
 | Mode | Behavior |
 | --- | --- |
 | `dump` | Log eval payloads and **do not** execute them |
 | `observe` | Log eval payloads **and** let the script run (requests hit the fake sink) |
 
-Logs land in `./sandbox-logs/<timestamp-id>/` (`domains.txt`, `http.jsonl`, `dns.log`, `eval-*.php`, `deobfuscated.php`, `indicators.json`, `traffic.pcap`). Override the default root with `EVILBOX_LOGS`. Domains are also printed on stderr. Stdout is the static cleanup of the last eval dump (or the original file if none).
-
-After deobfuscation the CLI prints an **indicators** block on stderr (URLs, domains, IPs, emails, dropped filenames, Windows/UNC paths, registry keys, and APIs such as `WScript.Shell` / `ActiveXObject`), plus roles and original-layer signature needles. If you pass `-o clean.js`, IOCs are written to `clean.iocs.json`. Sandbox runs also write `report.json` in the log directory.
+Logs land in `./sandbox-logs/<timestamp-id>/` (`domains.txt`, `http.jsonl`, `dns.log`, `eval-*.php`, `deobfuscated.php`, `indicators.json`, `report.json`, `traffic.pcap`). Stdout is the static cleanup of the last eval dump (or the original file if none). Classification still uses the **original** file for surface signatures.
 
 Requires Docker. The sample never gets a route to the public internet (`--network none`). That is still **malware execution inside the container** in `observe` mode — only use samples you intend to analyze.
 
@@ -77,18 +130,6 @@ Requires Docker. The sample never gets a route to the public internet (`--networ
 - **evalhook** is **vendored** at a pinned commit under [`sandbox/php/vendor/php-eval-hook/`](sandbox/php/vendor/php-eval-hook/). The image **does not** `git clone` at build time. See [`sandbox/php/vendor/SOURCES.md`](sandbox/php/vendor/SOURCES.md) for the GitHub URL, commit, and archive SHA-256.
 - **PHP** is not stored in git. The Dockerfile uses `php:8.3-cli-bookworm@sha256:…` so the tag cannot drift. Docker still **pulls that digest once** if you do not already have it.
 - Extra Debian packages (`dnsmasq`, `python3-cryptography`, …) are still installed from apt on the first uncached build; they are not copied into this repo.
-
-## What v1 does
-
-- Unescape string literals (`\xNN`, `\uNNNN`, octal, HTML entities)
-- Concatenate adjacent string literals (`+` in JS, `.` in PHP)
-- Fold simple numeric/boolean constants (`1+2`, `!0`)
-- JS: `eval(atob(...))`, `unescape` / `decodeURIComponent`, `String.fromCharCode(...)` when arguments are literals
-- PHP: `eval` / `assert` / `create_function` / `preg_replace /e` / `include` of decoded payloads, `gzinflate` / `gzuncompress` / `gzdecode`, `str_rot13`, `hex2bin`, `pack('H*', ...)`, string XOR, `chr` / `strtr`, `$arr[i]` folding
-- Rename `_0x...` junk identifiers (and PHP `$` hex names of that form)
-- Layer timeline, packer hints, capability/role classification, and scanner-visible signatures from the original file
-
-Not in v1: control-flow flattening, VM/dispatcher unpackers, or running a JavaScript engine.
 
 ## Tests
 
