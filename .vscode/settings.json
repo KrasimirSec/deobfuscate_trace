@@ -1,0 +1,8 @@
+{
+  "terminal.integrated.env.osx": {
+    "PATH": "${workspaceFolder}/bin:${workspaceFolder}/.venv/bin:${env:PATH}"
+  },
+  "terminal.integrated.env.linux": {
+    "PATH": "${workspaceFolder}/bin:${workspaceFolder}/.venv/bin:${env:PATH}"
+  }
+}

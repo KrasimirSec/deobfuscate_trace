@@ -6,15 +6,25 @@ It does **not** execute the input in a JS or PHP engine. The optional Docker PHP
 
 ## Install
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+The Python environment lives in `.venv` and is created **automatically** the first time you run the tool. You do not activate it.
+
+From this project folder:
+
+```text
+bin/evilbox
+bin/evilbox packed.php --sandbox observe --logs-dir ./sandbox-logs --timeout 20
 ```
+
+In the Cursor/VS Code terminal for this workspace, `bin` is prepended to `PATH`, so `evilbox` works the same way (no `bin/` prefix). New terminals pick that up.
+
+If you use [direnv](https://direnv.net/), `direnv allow` in this directory does the same for any shell: `cd` here, then type `evilbox`.
 
 ## Usage
 
+No arguments opens a small menu. Any extra arguments skip the menu:
+
 ```text
+evilbox
 evilbox packed.js -o clean.js
 evilbox packed.php --lang php
 evilbox - --lang js < packed.js

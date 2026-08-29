@@ -54,6 +54,21 @@ def test_cli_sandbox_js_uses_static_js(tmp_path, capsys):
     assert "open" in captured.out
 
 
+def test_interactive_menu_static(tmp_path, monkeypatch, capsys):
+    src = tmp_path / "a.js"
+    src.write_text('var x = "a" + "b";\n', encoding="utf-8")
+    dest = tmp_path / "out.js"
+    replies = iter(["1", str(src), str(dest), "", "js"])
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(replies))
+    assert main([]) == 0
+    assert "ab" in dest.read_text(encoding="utf-8")
+
+
+def test_interactive_quit(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda _prompt="": "5")
+    assert main([]) == 0
+
+
 def test_cli_missing_file(tmp_path, capsys):
     missing = tmp_path / "nope.js"
     assert main([str(missing)]) == 2

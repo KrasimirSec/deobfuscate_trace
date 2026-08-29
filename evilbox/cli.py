@@ -8,6 +8,7 @@ from pathlib import Path
 
 from evilbox.detect import PHP_EXTS, JS_EXTS, detect_language
 from evilbox.extract import extract_indicators, format_indicators
+from evilbox.interactive import run_interactive
 from evilbox.pipeline import deobfuscate
 from evilbox.report import build_report, dump_json, format_analysis, render_html
 from evilbox.sandbox import SandboxError, default_logs_root, run_php_sandbox
@@ -81,6 +82,9 @@ def _write_text(path: Path, text: str) -> None:
 
 
 def _main(argv: list[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if not raw:
+        return run_interactive(_main)
     parser = argparse.ArgumentParser(
         prog="evilbox",
         description="Evilbox: deobfuscate JavaScript or PHP, classify capabilities/roles, and extract scanner-visible signatures from the original file.",
@@ -112,7 +116,7 @@ def _main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", help="Write JSON report to this path (directory in batch mode)")
     parser.add_argument("--html", help="Write HTML report to this path (directory in batch mode)")
     parser.add_argument("--who", action="store_true", help=argparse.SUPPRESS)
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
 
     if args.who:
         from evilbox.hashutil import _who
